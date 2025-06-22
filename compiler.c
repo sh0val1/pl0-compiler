@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <ctype.h>
 
 // pl0 possible token types
 #define TOK_IDENT       'I'
@@ -36,9 +37,11 @@
 
 
 char *raw_file_data;  // supposed to contain the .pl0 file raw data as string
-int *offset_in_file;
+int raw_file_data_len = 0;
+int *curr_index = 0;
+int curr_row = 0;
 
-void print_error(char *error_msg){
+void print_error(char *error_msg) {
     printf(error_msg);
     exit(1);
 }
@@ -68,13 +71,47 @@ static void read_file(char *file_path) {
     
     if (read(fd, raw_file_data, st.st_size) != st.st_size)
         print_error("Failed reading file data");
-    raw_file_data[st.st_size] = '\0';  // Add null terminator. without it, the program will just keep reading and random chars will appear
 
+    raw_file_data[st.st_size] = '\0';  // Add null terminator. without it, the program will just keep reading and random chars will appear
+    raw_file_data_len = st.st_size;
+    
     close(fd);
 }
 
+int skip_comment() {
+    for (int i = curr_index; i < raw_file_data_len; i++) {
+        if (raw_file_data[i] == TOK_RCOMM)
+            curr_index = i;
+            return 0;
+    }
+    print_error("Could not find end of comment");
+}
+
+char* get_function_name() {
+    char *function_name[100];
+    int function_index = 0;
+    char current_char;
+    for (int i = curr_index; i < raw_file_data_len; i++) {
+        current_char = raw_file_data[i];
+        if (isalpha(current_char)) {
+            function_name[function_index] = current_char;
+        }
+        else { 
+            if (current_char == ";") {
+                function_name[i] = "/0";
+                curr_index = i;
+                return function_name;
+            }
+            else {
+                print_error("A non alphabetic char inserted in procedure name");
+            }
+        }
+    }
+    print_error("Non-terminated procedure name.");
+}
+
 int main(int argc, char *argv[]) {
-    if(argc != 2){
+    if(argc != 2) {
         printf("Usage: compiler FILE_NAME_TO_COMPILE\n");
         return 1;
     }
