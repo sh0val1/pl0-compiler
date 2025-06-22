@@ -1,0 +1,59 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
+
+char *raw_file_data;  // supposed to contain the .pl0 file raw data as string
+
+void print_error(char *error_msg){
+    printf(error_msg);
+    exit(1);
+}
+
+static void read_file(char *file_path) {
+    /*
+    Stages:
+    1. check file is valid plo file
+    2. open the file
+    3. check for its size
+    4. allocate memory for the file data
+    5. read into the allocated memory
+    */
+    int fd; 
+    struct stat st;
+    if (strlen(file_path) < 4 || strcmp(file_path + strlen(file_path) - 4, ".pl0") != 0)
+        print_error("File must have .pl0 suffix");
+    
+    if ((fd = open(file_path, O_RDONLY)) == -1)
+        print_error("Could not open file");
+
+    if (fstat(fd, &st) == -1)
+        print_error("Could not stat file");
+
+    if ((raw_file_data = malloc(st.st_size + 1)) == NULL)
+        print_error("Failed allocating memory for file data");
+    
+    if (read(fd, raw_file_data, st.st_size) != st.st_size)
+        print_error("Failed reading file data");
+    raw_file_data[st.st_size] = '\0';  // Add null terminator. without it, the program will just keep reading and random chars will appear
+
+    close(fd);
+}
+
+int main(int argc, char *argv[]) {
+    if(argc != 2){
+        printf("Usage: compiler FILE_NAME_TO_COMPILE\n");
+        return 1;
+    }
+    
+    printf("Reading file content...\n");
+    printf("%s\n", argv[1]);
+
+    read_file(argv[1]);
+
+    printf("Finish read_file function\n");
+    printf("%s", raw_file_data);
+
+    return 0;
+}
